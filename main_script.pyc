@@ -1,0 +1,92 @@
+from tkinter import *
+from tkinter import filedialog
+from tkinter import messagebox
+from PIL import Image, ImageTk
+import urllib.request
+import re
+import pafy
+
+root = Tk()
+width = 720
+height = 720
+screen_width = root.winfo_screenwidth()
+screen_height = root.winfo_screenheight()
+position_x = (screen_width / 1.98) - (width / 2)
+position_y = (screen_height / 2.22) - (height / 2)
+root.geometry(f"{width}x{height}+{int(position_x)}+{int(position_y)}")
+root.title("Bulk Music Downloader")
+root.config(bg='black')
+main_label = Label(root, text="Select the txt file with the names of all the songs", font="Helvetica 17 bold", fg="gold", bg="black")
+main_label.place(x=93, y=30)
+link_list = []
+error_label = Label()
+error_label2 = Label()
+quantity = []
+
+
+def location():
+    global link_list, error_label, quantity
+    try:
+        error_label.place_forget()
+        loc = filedialog.askopenfilename(title="Select your song list file", filetypes=(("text files", "*.txt"), ("all files", "*.*")))
+        with open(f"{loc}", "r", encoding="utf8") as f:
+            contents = f.read()
+            if ", " in contents:
+                actual_song_list = contents.split(", ")
+            elif "\n" in contents:
+                actual_song_list = contents.split("\n")
+            elif ",\n" in contents:
+                actual_song_list = contents.split(",\n")
+            else:
+                messagebox.showerror("Incorrect file format", "The song list is unreadable, please reformat the list as specified in the README.txt file of this application")
+        if len(contents) == 0:
+            messagebox.showerror("Nothing Found", "No song list found! The file you selected was empty. Please select another file.")
+        else:
+            print(actual_song_list)
+            j = 0
+            for i in range(len(actual_song_list)):
+                query = actual_song_list[j].replace(" ", "+")
+                html = urllib.request.urlopen(f"https://www.youtube.com/results?search_query={query}")
+                vid_urls = re.findall(r"watch\?v=(\S{11})", html.read().decode())
+                required_url = f"https://www.youtube.com/watch?v={vid_urls[0]}"
+                link_list.append(required_url)
+                j += 1
+            print(link_list)
+            success_label = Label(root, text="File Selected!", bg="black", fg="light cyan", font="Helvetica 13 bold", padx=2)
+            success_label.place(x=308, y=157)
+
+            def dnld():
+                global error_label2, quantity, image, photo
+                folder_name = filedialog.askdirectory()
+                if len(folder_name) < 1:
+                    error_label2 = Label(root, text="Please select a download location!!", bg="black", fg="red", font="Helvetica 13 bold", padx=2)
+                    error_label2.place(x=223, y=275)
+                else:
+                    error_label2.place_forget()
+                    success_label2 = Label(root, text="Folder Selected!", bg="black", fg="light cyan", font="Helvetica 13 bold", padx=2)
+                    success_label2.place(x=302, y=275)
+                    messagebox.showinfo("Have Patience!", "Your songs might take a while to download, so please have patience!")
+                    for k in range(len(link_list)):
+                        dnld_url = link_list[k]
+                        mp4 = pafy.new(dnld_url)
+                        bestqual = mp4.getbestaudio()
+                        bestqual.download(filepath=folder_name)
+                        quantity.append(k)
+                        done_label = Label(root, text=f"{len(quantity)} out of {len(link_list)} songs have been downloaded!", bg="black", fg="goldenrod", font="Helvetica 14 bold")
+                        done_label.place(x=177, y=350)
+                        k += 1
+                    image = Image.open("done2.jpg")
+                    photo = ImageTk.PhotoImage(image)
+                    photo_label = Label(root, image=photo, highlightthickness=0, borderwidth=0, padx=0, pady=0)
+                    photo_label.place(x=250, y=400)
+            btn_download = Button(root, text="Start Download!", bg="OrangeRed2", fg="black", font="Helvetica 18 bold", relief=RIDGE, activebackground="OrangeRed2", padx=4, pady=3, command=dnld)
+            btn_download.place(x=260, y=207)
+    except FileNotFoundError:
+        error_label = Label(root, text="Please select a file!!", bg="black", fg="red", font="Helvetica 13 bold", padx=2)
+        error_label.place(x=283, y=157)
+
+
+btn_select = Button(root, text="SELECT", font="Helvetica 18 bold", fg="black", bg="green2", padx=4, pady=3, activebackground="green2", relief=RIDGE, command=location)
+btn_select.place(x=301, y=89)
+
+root.mainloop()
